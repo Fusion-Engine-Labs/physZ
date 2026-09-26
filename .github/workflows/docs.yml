@@ -26,6 +26,10 @@ jobs:
       - name: Generate docs
         run: zig build docs
 
+      - name: Install GNU tar
+        if: github.event_name != 'pull_request'
+        run: apk add --no-cache tar
+
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v4
