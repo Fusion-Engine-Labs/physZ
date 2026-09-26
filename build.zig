@@ -20,4 +20,17 @@ pub fn build(b: *std.Build) void {
 
     const check_step = b.step("check", "Compile tests without running them");
     check_step.dependOn(&mod_tests.step);
+
+    const docs_lib = b.addLibrary(.{
+        .name = "physZ",
+        .root_module = mod,
+    });
+    const install_docs = b.addInstallDirectory(.{
+        .source_dir = docs_lib.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs",
+    });
+
+    const docs_step = b.step("docs", "Generate documentation");
+    docs_step.dependOn(&install_docs.step);
 }
