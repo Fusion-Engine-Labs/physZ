@@ -1,0 +1,3 @@
+.zig-cache/
+.zit-out/
+zig-pkg/
