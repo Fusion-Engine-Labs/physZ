@@ -1,0 +1,37 @@
+name: Zig
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    container: jackpar/zig:0.16.0
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Build project for release
+        run: zig build -Doptimize=ReleaseFast
+
+  test:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    container: jackpar/zig:0.16.0
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Test project
+        run: zig build test --summary all
+
+      - name: Check formatting
+        run: zig fmt --check build.zig src 
