@@ -8,35 +8,35 @@ y: f32,
 pub const zero: Vec2 = .{ .x = 0, .y = 0 };
 pub const one: Vec2 = .{ .x = 1, .y = 1 };
 
-pub fn init(x: f32, y: f32) Vec2 {
+pub inline fn init(x: f32, y: f32) Vec2 {
     return .{ .x = x, .y = y };
 }
 
-pub fn add(a: Vec2, b: Vec2) Vec2 {
+pub inline fn add(a: Vec2, b: Vec2) Vec2 {
     return .{ .x = a.x + b.x, .y = a.y + b.y };
 }
 
-pub fn sub(a: Vec2, b: Vec2) Vec2 {
+pub inline fn sub(a: Vec2, b: Vec2) Vec2 {
     return .{ .x = a.x - b.x, .y = a.y - b.y };
 }
 
-pub fn scale(v: Vec2, s: f32) Vec2 {
+pub inline fn scale(v: Vec2, s: f32) Vec2 {
     return .{ .x = v.x * s, .y = v.y * s };
 }
 
-pub fn negate(v: Vec2) Vec2 {
+pub inline fn negate(v: Vec2) Vec2 {
     return .{ .x = -v.x, .y = -v.y };
 }
 
-pub fn dot(a: Vec2, b: Vec2) f32 {
+pub inline fn dot(a: Vec2, b: Vec2) f32 {
     return a.x * b.x + a.y * b.y;
 }
 
-pub fn lengthSquared(v: Vec2) f32 {
+pub inline fn lengthSquared(v: Vec2) f32 {
     return v.dot(v);
 }
 
-pub fn length(v: Vec2) f32 {
+pub inline fn length(v: Vec2) f32 {
     return std.math.sqrt(v.lengthSquared());
 }
 
