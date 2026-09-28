@@ -60,7 +60,6 @@ test "dynamic body mass comes from area times density" {
         .density = 2,
     });
 
-    // Area 4, density 2, mass 8.
     try testing.expectEqual(@as(f32, 1.0 / 8.0), body.inv_mass);
 }
 
