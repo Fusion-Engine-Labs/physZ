@@ -26,5 +26,8 @@ pub fn main() !void {
         .position = Vec2.init(3, 4),
     });
 
-    try visualize.run(&world, .{ .title = "physZ - sandbox" });
+    try visualize.run(&world, .{
+        .title = "physZ - sandbox",
+        .bounds = .{ .min = Vec2.init(-6, 0), .max = Vec2.init(6, 8) },
+    });
 }

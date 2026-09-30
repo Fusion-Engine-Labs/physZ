@@ -12,16 +12,23 @@ const font_size = 20;
 const line_height = 24;
 const panel_padding = 10;
 
-const bg_color: rl.Color = .{ .r = 24, .g = 26, .b = 31, .a = 255 };
-const grid_color: rl.Color = .{ .r = 40, .g = 43, .b = 50, .a = 255 };
-const axis_color: rl.Color = .{ .r = 70, .g = 74, .b = 84, .a = 255 };
-const static_color: rl.Color = .{ .r = 110, .g = 115, .b = 125, .a = 255 };
+const bg_color: rl.Color = .{ .r = 253, .g = 248, .b = 240, .a = 255 };
+const grid_color: rl.Color = .{ .r = 238, .g = 230, .b = 220, .a = 255 };
+const axis_color: rl.Color = .{ .r = 214, .g = 202, .b = 190, .a = 255 };
+const ink_color: rl.Color = .{ .r = 84, .g = 74, .b = 102, .a = 255 };
+const velocity_color: rl.Color = .{ .r = 240, .g = 110, .b = 150, .a = 255 };
+const panel_color: rl.Color = .{ .r = 255, .g = 255, .b = 255, .a = 220 };
+const panel_border_color: rl.Color = .{ .r = 230, .g = 218, .b = 236, .a = 255 };
+const paused_color: rl.Color = .{ .r = 236, .g = 120, .b = 100, .a = 255 };
+const running_color: rl.Color = .{ .r = 70, .g = 170, .b = 120, .a = 255 };
+const static_color: rl.Color = .{ .r = 196, .g = 190, .b = 212, .a = 255 };
 const dynamic_colors = [_]rl.Color{
-    .{ .r = 94, .g = 173, .b = 255, .a = 255 },
-    .{ .r = 255, .g = 140, .b = 90, .a = 255 },
-    .{ .r = 120, .g = 220, .b = 140, .a = 255 },
-    .{ .r = 240, .g = 200, .b = 80, .a = 255 },
-    .{ .r = 200, .g = 130, .b = 240, .a = 255 },
+    .{ .r = 255, .g = 179, .b = 198, .a = 255 }, // pink
+    .{ .r = 160, .g = 210, .b = 245, .a = 255 }, // sky
+    .{ .r = 170, .g = 230, .b = 190, .a = 255 }, // mint
+    .{ .r = 255, .g = 204, .b = 153, .a = 255 }, // peach
+    .{ .r = 200, .g = 180, .b = 240, .a = 255 }, // lavender
+    .{ .r = 253, .g = 236, .b = 150, .a = 255 }, // butter
 };
 
 const Camera = struct {
@@ -54,7 +61,14 @@ const Camera = struct {
     }
 };
 
+pub const Bounds = struct {
+    min: Vec2,
+    max: Vec2,
+};
+
 pub const Options = struct {
+    // Optional outlined rectangle (world space) drawn behind the bodies.
+    bounds: ?Bounds = null,
     title: [:0]const u8 = "physZ",
     width: i32 = 1280,
     height: i32 = 720,
@@ -161,6 +175,7 @@ pub fn run(world: *World, opts: Options) !void {
 
         rl.clearBackground(bg_color);
         drawGrid(camera);
+        if (opts.bounds) |b| drawBounds(b, camera);
         drawBodies(sim.world, camera, show_velocity);
         drawStats(&sim);
         if (show_help) drawHelp();
@@ -189,6 +204,17 @@ fn drawGrid(cam: Camera) void {
     }
 }
 
+fn drawBounds(bounds: Bounds, cam: Camera) void {
+    const top_left = cam.toScreen(Vec2.init(bounds.min.x, bounds.max.y));
+    const rect: rl.Rectangle = .{
+        .x = top_left.x,
+        .y = top_left.y,
+        .width = (bounds.max.x - bounds.min.x) * cam.pixels_per_meter,
+        .height = (bounds.max.y - bounds.min.y) * cam.pixels_per_meter,
+    };
+    rl.drawRectangleLinesEx(rect, 3, ink_color);
+}
+
 fn drawBodies(world: *const World, cam: Camera, show_velocity: bool) void {
     var dynamic_index: usize = 0;
     for (world.bodies.items) |body| {
@@ -204,8 +230,7 @@ fn drawBodies(world: *const World, cam: Camera, show_velocity: bool) void {
         switch (body.shape) {
             .circle => |c| {
                 const r = c.radius * cam.pixels_per_meter;
-                rl.drawCircleV(center, r, color.fade(0.35));
-                rl.drawCircleLinesV(center, r, color);
+                rl.drawCircleV(center, r, color);
             },
             .box => |b| {
                 const top_left = cam.toScreen(Vec2.init(
@@ -218,15 +243,13 @@ fn drawBodies(world: *const World, cam: Camera, show_velocity: bool) void {
                     .width = 2 * b.half_extents.x * cam.pixels_per_meter,
                     .height = 2 * b.half_extents.y * cam.pixels_per_meter,
                 };
-                rl.drawRectangleRec(rect, color.fade(0.35));
-                rl.drawRectangleLinesEx(rect, 2, color);
+                rl.drawRectangleRec(rect, color);
             },
         }
 
-        rl.drawCircleV(center, 3, color);
         if (show_velocity and body.kind == .dynamic and body.velocity.lengthSquared() > 0) {
             const tip = cam.toScreen(body.position.add(body.velocity.scale(0.5)));
-            rl.drawLineEx(center, tip, 2, .yellow);
+            rl.drawLineEx(center, tip, 2, velocity_color);
         }
     }
 }
@@ -271,9 +294,9 @@ fn drawStats(sim: *const Sim) void {
     const panel_x = rl.getScreenWidth() - panel_w - panel_padding;
     const panel_y = panel_padding;
 
-    rl.drawRectangle(panel_x, panel_y, panel_w, panel_h, rl.Color.black.fade(0.6));
+    drawPanel(panel_x, panel_y, panel_w, panel_h);
     for (lines[0..n], 0..) |line, i| {
-        const color: rl.Color = if (i == 0) (if (sim.paused) .orange else .green) else .ray_white;
+        const color: rl.Color = if (i == 0) (if (sim.paused) paused_color else running_color) else ink_color;
         rl.drawText(line, panel_x + panel_padding, panel_y + panel_padding + @as(i32, @intCast(i)) * line_height, font_size, color);
     }
 }
@@ -297,8 +320,19 @@ fn drawHelp() void {
 
     const panel_x = panel_padding;
     const panel_y = rl.getScreenHeight() - panel_h - panel_padding;
-    rl.drawRectangle(panel_x, panel_y, max_width + 2 * panel_padding, panel_h, rl.Color.black.fade(0.6));
+    drawPanel(panel_x, panel_y, max_width + 2 * panel_padding, panel_h);
     for (lines, 0..) |line, i| {
-        rl.drawText(line, panel_x + panel_padding, panel_y + panel_padding + @as(i32, @intCast(i)) * line_height, font_size, .ray_white);
+        rl.drawText(line, panel_x + panel_padding, panel_y + panel_padding + @as(i32, @intCast(i)) * line_height, font_size, ink_color);
     }
+}
+
+fn drawPanel(x: i32, y: i32, w: i32, h: i32) void {
+    const rect: rl.Rectangle = .{
+        .x = @floatFromInt(x),
+        .y = @floatFromInt(y),
+        .width = @floatFromInt(w),
+        .height = @floatFromInt(h),
+    };
+    rl.drawRectangleRounded(rect, 0.15, 8, panel_color);
+    rl.drawRectangleRoundedLinesEx(rect, 0.15, 8, 2, panel_border_color);
 }
