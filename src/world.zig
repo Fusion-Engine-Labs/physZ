@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const resolve = @import("resolver.zig").resolve;
+const collide = @import("collider.zig").collide;
 const RigidBody = @import("rigid_body.zig");
 const Vec2 = @import("math/vec2.zig");
 
@@ -31,8 +33,28 @@ pub fn deinit(world: *World) void {
 }
 
 pub fn step(world: *World, dt: f32) !void {
-    _ = dt;
-    _ = world;
+    for (world.bodies.items) |*b| {
+        if (b.kind == .static) {
+            continue;
+        }
+
+        b.velocity.y += world.gravity * dt;
+        b.velocity = b.velocity.add(b.force.scale(b.inv_mass * dt));
+        b.position = b.position.add(b.velocity.scale(dt));
+        b.force = .zero;
+    }
+
+    for (world.bodies.items, 0..) |*a, i| {
+        for (world.bodies.items[i + 1 ..]) |*b| {
+            if (a.inv_mass + b.inv_mass == 0) {
+                continue;
+            }
+
+            if (collide(a.*, b.*)) |m| {
+                resolve(a, b, m);
+            }
+        }
+    }
 }
 
 pub fn createBody(world: *World, opts: RigidBody.InitOptions) !RigidBody.Id {
