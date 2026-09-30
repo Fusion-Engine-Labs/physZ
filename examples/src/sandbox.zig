@@ -6,11 +6,8 @@ const visualize = @import("visualize.zig");
 const World = physZ.World;
 const Vec2 = physZ.Vec2;
 
-pub fn main() !void {
-    var gpa: std.heap.DebugAllocator(.{}) = .init;
-    defer _ = gpa.deinit();
-
-    var world = World.init(gpa.allocator(), .{});
+pub fn main(init: std.process.Init) !void {
+    var world = World.init(init.gpa, .{});
     defer world.deinit();
 
     _ = try world.createBody(.{
