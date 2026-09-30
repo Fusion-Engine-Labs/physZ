@@ -17,17 +17,16 @@ concurrency:
 jobs:
   build:
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    container: jackpar/zig:0.16.0
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+
       - name: Generate docs
         run: zig build docs
-
-      - name: Install GNU tar
-        run: apk add --no-cache tar
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
