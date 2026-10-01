@@ -22,3 +22,21 @@ pub fn correctPosition(contact: *const Contact) void {
     contact.a.position = contact.a.position.sub(corr.scale(contact.a.inv_mass));
     contact.b.position = contact.b.position.add(corr.scale(contact.b.inv_mass));
 }
+
+const testing = @import("std").testing;
+
+test "resolveVelocity bounces approaching bodies and correctPosition separates them" {
+    var a = RigidBody.init(.{ .shape = .{ .box = .{ .half_extents = .one } }, .velocity = .init(1, 0), .restitution = 1 });
+    var b = RigidBody.init(.{ .shape = .{ .box = .{ .half_extents = .one } }, .velocity = .init(-1, 0), .restitution = 1 });
+    const contact: Contact = .{ .a = &a, .b = &b, .m = .{ .normal = .init(1, 0), .depth = 0.51 } };
+
+    for (0..2) |_| {
+        resolveVelocity(&contact);
+        try testing.expectEqual(@as(f32, -1), a.velocity.x);
+        try testing.expectEqual(@as(f32, 1), b.velocity.x);
+    }
+
+    correctPosition(&contact);
+    try testing.expectApproxEqAbs(@as(f32, -0.2), a.position.x, 1e-6);
+    try testing.expectApproxEqAbs(@as(f32, 0.2), b.position.x, 1e-6);
+}

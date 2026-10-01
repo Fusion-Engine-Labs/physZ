@@ -142,3 +142,22 @@ test "getBodyMut allows modifying a body in place" {
     try testing.expectEqual(@as(f32, 1), world.getBody(id).velocity.x);
     try testing.expectEqual(@as(f32, 2), world.getBody(id).velocity.y);
 }
+
+test "step integrates dynamic bodies and resolves contacts against static ones" {
+    var world = World.init(testing.allocator, .{ .gravity = -10 });
+    defer world.deinit();
+
+    const floor = try world.createBody(.{ .kind = .static, .shape = .{ .box = .{ .half_extents = .one } } });
+    _ = try world.createBody(.{ .kind = .static, .shape = .{ .box = .{ .half_extents = .one } } });
+    const ball = try world.createBody(.{ .shape = .{ .circle = .{ .radius = 1 } }, .position = .init(0, 1.9) });
+    world.getBodyMut(ball).applyForce(.init(1, 0));
+
+    try world.step(0.1);
+
+    const body = world.getBody(ball);
+    try testing.expectEqual(Vec2.zero, world.getBody(floor).position);
+    try testing.expectEqual(Vec2.zero, body.force);
+    try testing.expect(body.velocity.x > 0);
+    try testing.expectApproxEqAbs(@as(f32, 0.2), body.velocity.y, 1e-5);
+    try testing.expect(body.position.y > 1.8);
+}

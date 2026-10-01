@@ -80,3 +80,29 @@ fn circleCircle(pa: Vec2, ra: f32, pb: Vec2, rb: f32) ?Manifold {
     const dist = @sqrt(dist_sq);
     return .{ .normal = d.scale(1 / dist), .depth = r - dist };
 }
+
+const testing = std.testing;
+
+fn box(x: f32, y: f32) RigidBody {
+    return .init(.{ .shape = .{ .box = .{ .half_extents = .one } }, .position = .init(x, y) });
+}
+
+fn circle(x: f32, y: f32) RigidBody {
+    return .init(.{ .shape = .{ .circle = .{ .radius = 1 } }, .position = .init(x, y) });
+}
+
+test "collide returns a manifold pointing from a to b for overlapping shapes" {
+    try testing.expectEqual(Manifold{ .normal = .init(1, 0), .depth = 0.5 }, collide(box(0, 0), box(1.5, 0.5)).?);
+    try testing.expectEqual(Manifold{ .normal = .init(0, -1), .depth = 0.5 }, collide(box(0, 0), box(0.5, -1.5)).?);
+    try testing.expectEqual(Manifold{ .normal = .init(1, 0), .depth = 0.5 }, collide(box(0, 0), circle(1.5, 0)).?);
+    try testing.expectEqual(Manifold{ .normal = .init(1, 0), .depth = 0.5 }, collide(circle(0, 0), box(1.5, 0)).?);
+    try testing.expectEqual(Manifold{ .normal = .init(1, 0), .depth = 1 }, collide(circle(0, 0), circle(1, 0)).?);
+    try testing.expectEqual(Manifold{ .normal = .init(0, 1), .depth = 2 }, collide(circle(0, 0), circle(0, 0)).?);
+}
+
+test "collide returns null for separated shapes" {
+    try testing.expectEqual(null, collide(box(0, 0), box(3, 0)));
+    try testing.expectEqual(null, collide(box(0, 0), circle(3, 0)));
+    try testing.expectEqual(null, collide(circle(0, 0), box(3, 0)));
+    try testing.expectEqual(null, collide(circle(0, 0), circle(3, 0)));
+}
