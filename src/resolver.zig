@@ -9,7 +9,7 @@ pub fn resolveVelocity(contact: *const Contact) void {
         const e = @min(contact.a.restitution, contact.b.restitution);
         const j = -(1 + e) * vn / inv_sum;
         contact.a.velocity = contact.a.velocity.sub(contact.m.normal.scale(j * contact.a.inv_mass));
-        contact.b.velocity = contact.b.velocity.sub(contact.m.normal.scale(j * contact.b.inv_mass));
+        contact.b.velocity = contact.b.velocity.add(contact.m.normal.scale(j * contact.b.inv_mass));
     }
 }
 
