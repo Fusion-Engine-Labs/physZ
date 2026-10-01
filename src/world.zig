@@ -1,8 +1,8 @@
 const std = @import("std");
 
-const resolve = @import("resolver.zig").resolve;
-const collide = @import("collider.zig").collide;
 const RigidBody = @import("rigid_body.zig");
+const resolver = @import("resolver.zig");
+const collider = @import("collider.zig");
 const Vec2 = @import("math/vec2.zig");
 
 const World = @This();
@@ -44,16 +44,29 @@ pub fn step(world: *World, dt: f32) !void {
         b.force = .zero;
     }
 
+    var contacts: std.ArrayList(collider.Contact) = .empty;
+    defer contacts.deinit(world.allocator);
+
     for (world.bodies.items, 0..) |*a, i| {
         for (world.bodies.items[i + 1 ..]) |*b| {
             if (a.inv_mass + b.inv_mass == 0) {
                 continue;
             }
 
-            if (collide(a.*, b.*)) |m| {
-                resolve(a, b, m);
+            if (collider.collide(a.*, b.*)) |m| {
+                try contacts.append(world.allocator, .{ .a = a, .b = b, .m = m });
             }
         }
+    }
+
+    for (0..world.velocity_iterations) |_| {
+        for (contacts.items) |c| {
+            resolver.resolveVelocity(&c);
+        }
+    }
+
+    for (contacts.items) |c| {
+        resolver.correctPosition(&c);
     }
 }
 

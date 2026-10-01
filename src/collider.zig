@@ -3,6 +3,12 @@ const std = @import("std");
 const Vec2 = @import("math/vec2.zig");
 const RigidBody = @import("rigid_body.zig");
 
+pub const Contact = struct {
+    a: *RigidBody,
+    b: *RigidBody,
+    m: Manifold,
+};
+
 pub const Manifold = struct {
     normal: Vec2,
     depth: f32,
@@ -16,7 +22,7 @@ pub fn collide(a: RigidBody, b: RigidBody) ?Manifold {
         },
         .circle => |ac| switch (b.shape) {
             .box => |bb| flip(circleBox(a.position, ac.radius, b.position, bb.half_extents)),
-            .circle => null,
+            .circle => |bc| circleCircle(a.position, ac.radius, b.position, bc.radius),
         },
     };
 }
@@ -57,4 +63,20 @@ fn circleBox(c: Vec2, r: f32, pb: Vec2, hb: Vec2) ?Manifold {
 
     const dist = @sqrt(dist_sq);
     return .{ .normal = diff.scale(1 / dist), .depth = r - dist };
+}
+
+fn circleCircle(pa: Vec2, ra: f32, pb: Vec2, rb: f32) ?Manifold {
+    const d = pb.sub(pa);
+    const dist_sq = d.lengthSquared();
+    const r = ra + rb;
+    if (dist_sq >= r * r) {
+        return null;
+    }
+
+    if (dist_sq == 0) {
+        return .{ .normal = .init(0, 1), .depth = r };
+    }
+
+    const dist = @sqrt(dist_sq);
+    return .{ .normal = d.scale(1 / dist), .depth = r - dist };
 }
