@@ -42,23 +42,39 @@ fn boxBox(pa: Vec2, ha: Vec2, pb: Vec2, hb: Vec2) ?Manifold {
     }
 
     if (ox < oy) {
-        return .{ .normal = Vec2.init(std.math.sign(d.x), 0), .depth = ox };
+        return .{ .normal = .init(direction(d.x), 0), .depth = ox };
     }
 
-    return .{ .normal = Vec2.init(0, std.math.sign(d.y)), .depth = oy };
+    return .{ .normal = .init(0, direction(d.y)), .depth = oy };
+}
+
+inline fn direction(x: f32) f32 {
+    return if (x < 0) -1 else 1;
 }
 
 fn circleBox(c: Vec2, r: f32, pb: Vec2, hb: Vec2) ?Manifold {
     const local = c.sub(pb);
-    const closest = pb.add(Vec2.init(
+    const closest = Vec2.init(
         std.math.clamp(local.x, -hb.x, hb.x),
         std.math.clamp(local.y, -hb.y, hb.y),
-    ));
+    );
 
-    const diff = c.sub(closest);
+    const diff = local.sub(closest);
     const dist_sq = diff.lengthSquared();
-    if (dist_sq >= r * r or dist_sq == 0) {
+    if (dist_sq >= r * r) {
         return null;
+    }
+
+    // centre is inside the box, push out through the nearest face.
+    if (dist_sq == 0) {
+        const fx = hb.x - @abs(local.x);
+        const fy = hb.y - @abs(local.y);
+
+        if (fx < fy) {
+            return .{ .normal = .init(direction(local.x), 0), .depth = r + fx };
+        }
+
+        return .{ .normal = .init(0, direction(local.y)), .depth = r + fy };
     }
 
     const dist = @sqrt(dist_sq);
@@ -98,6 +114,19 @@ test "collide returns a manifold pointing from a to b for overlapping shapes" {
     try testing.expectEqual(Manifold{ .normal = .init(1, 0), .depth = 0.5 }, collide(circle(0, 0), box(1.5, 0)).?);
     try testing.expectEqual(Manifold{ .normal = .init(1, 0), .depth = 1 }, collide(circle(0, 0), circle(1, 0)).?);
     try testing.expectEqual(Manifold{ .normal = .init(0, 1), .depth = 2 }, collide(circle(0, 0), circle(0, 0)).?);
+}
+
+test "collide pushes a circle whose centre is inside a box out through the nearest face" {
+    try testing.expectEqual(Manifold{ .normal = .init(1, 0), .depth = 1.5 }, collide(box(0, 0), circle(0.5, 0.25)).?);
+    try testing.expectEqual(Manifold{ .normal = .init(-1, 0), .depth = 1.5 }, collide(circle(0.5, 0.25), box(0, 0)).?);
+    try testing.expectEqual(Manifold{ .normal = .init(0, -1), .depth = 1.25 }, collide(box(0, 0), circle(0.5, -0.75)).?);
+    try testing.expectEqual(Manifold{ .normal = .init(1, 0), .depth = 1 }, collide(box(0, 0), circle(1, 0)).?);
+}
+
+test "collide returns a unit normal when centres coincide" {
+    try testing.expectEqual(Manifold{ .normal = .init(0, 1), .depth = 2 }, collide(box(0, 0), box(0, 0)).?);
+    try testing.expectEqual(Manifold{ .normal = .init(0, 1), .depth = 2 }, collide(box(0, 0), circle(0, 0)).?);
+    try testing.expectEqual(Manifold{ .normal = .init(1, 0), .depth = 1.5 }, collide(box(0, 0), box(0.5, 0)).?);
 }
 
 test "collide returns null for separated shapes" {
