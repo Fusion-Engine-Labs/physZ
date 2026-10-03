@@ -58,12 +58,13 @@ pub fn build(b: *std.Build) !void {
             });
             b.getInstallStep().dependOn(emcc_step);
 
-            const html_filename = b.fmt("{s}.html", .{wasm.name});
-            const emrun_step = emsdk.emrunStep(
-                b,
-                b.getInstallPath(install_dir, html_filename),
-                &.{},
-            );
+            // `b.getInstallPath` was removed in 0.17; install paths are now
+            // only known during the make phase, so refer to them lazily.
+            const html_path: std.Build.LazyPath = .{ .relative = .{
+                .base = .install_prefix,
+                .sub_path = b.fmt("{s}/{s}.html", .{ install_dir.custom, wasm.name }),
+            } };
+            const emrun_step = emsdk.emrunStep(b, html_path, &.{});
 
             emrun_step.dependOn(emcc_step);
             example_run_step.dependOn(emrun_step);
@@ -77,6 +78,7 @@ pub fn build(b: *std.Build) !void {
 
             const run_cmd = b.addRunArtifact(exe);
             run_cmd.step.dependOn(&install_exe.step);
+            run_cmd.addPassthruArgs();
 
             example_run_step.dependOn(&run_cmd.step);
         }

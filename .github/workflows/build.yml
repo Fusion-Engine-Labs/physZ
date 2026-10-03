@@ -1,96 +1,101 @@
 name: Zig
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
 
 permissions:
-  contents: read
-  actions: read
+    contents: read
+    actions: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
 
 jobs:
-  fmt:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    fmt:
+        runs-on: blacksmith-4vcpu-ubuntu-2404
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v6
 
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v2
-        with:
-          cache-key: fmt
+            - name: Setup Zig
+              uses: mlugg/setup-zig@v2
+              with:
+                  version: 0.17.0
+                  cache-key: fmt
 
-      - name: Check formatting
-        run: zig fmt --check .
+            - name: Check formatting
+              run: zig fmt --check .
 
-  test:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    strategy:
-      fail-fast: false
-      matrix:
-        optimize: [Debug, ReleaseSafe, ReleaseFast, ReleaseSmall]
+    test:
+        runs-on: blacksmith-4vcpu-ubuntu-2404
+        strategy:
+            fail-fast: false
+            matrix:
+                optimize: [Debug, ReleaseSafe, ReleaseFast, ReleaseSmall]
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v6
 
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v2
-        with:
-          cache-key: test-${{ matrix.optimize }}
+            - name: Setup Zig
+              uses: mlugg/setup-zig@v2
+              with:
+                  version: 0.17.0
+                  cache-key: test-${{ matrix.optimize }}
 
-      - name: Test project (${{ matrix.optimize }})
-        run: zig build test -Doptimize=${{ matrix.optimize }} --summary all
+            - name: Test project (${{ matrix.optimize }})
+              run: zig build test -Doptimize=${{ matrix.optimize }} --summary all
 
-  cross-compile:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    strategy:
-      fail-fast: false
-      matrix:
-        target: [x86_64-windows, aarch64-macos, aarch64-linux, wasm32-wasi]
+    cross-compile:
+        runs-on: blacksmith-4vcpu-ubuntu-2404
+        strategy:
+            fail-fast: false
+            matrix:
+                target:
+                    [x86_64-windows, aarch64-macos, aarch64-linux, wasm32-wasi]
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v6
 
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v2
-        with:
-          cache-key: cross-${{ matrix.target }}
+            - name: Setup Zig
+              uses: mlugg/setup-zig@v2
+              with:
+                  version: 0.17.0
+                  cache-key: cross-${{ matrix.target }}
 
-      - name: Compile tests for ${{ matrix.target }}
-        run: zig build check -Dtarget=${{ matrix.target }} --summary all
+            - name: Compile tests for ${{ matrix.target }}
+              run: zig build check -Dtarget=${{ matrix.target }} --summary all
 
-  examples:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    strategy:
-      fail-fast: false
-      matrix:
-        target: [native, x86_64-windows]
+    examples:
+        runs-on: blacksmith-4vcpu-ubuntu-2404
+        strategy:
+            fail-fast: false
+            matrix:
+                target: [native, x86_64-windows]
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v6
 
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v2
-        with:
-          cache-key: examples-${{ matrix.target }}
+            - name: Setup Zig
+              uses: mlugg/setup-zig@v2
+              with:
+                  version: 0.17.0
+                  cache-key: examples-${{ matrix.target }}
 
-      # raylib links against X11 and GL on Linux
-      - name: Install raylib system dependencies
-        if: matrix.target == 'native'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libx11-dev libxrandr-dev libxinerama-dev libxi-dev libxcursor-dev libgl1-mesa-dev
+            # raylib links against X11 and GL on Linux
+            - name: Install raylib system dependencies
+              if: matrix.target == 'native'
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y libx11-dev libxrandr-dev libxinerama-dev libxi-dev libxcursor-dev libgl1-mesa-dev
 
-      - name: Build examples for ${{ matrix.target }}
-        working-directory: examples
-        run: zig build -Dtarget=${{ matrix.target }} --summary all
+            - name: Build examples for ${{ matrix.target }}
+              working-directory: examples
+              run: zig build -Dtarget=${{ matrix.target }} --summary all
