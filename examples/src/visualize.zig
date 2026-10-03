@@ -236,7 +236,7 @@ fn drawStats(sim: *const Sim) void {
     const frame_ms = rl.getFrameTime() * 1000;
     const format = struct {
         fn f(buf: *[64]u8, comptime fmt: []const u8, args: anytype) [:0]const u8 {
-            return std.fmt.bufPrintZ(buf, fmt, args) catch "<overflow>";
+            return std.mem.printSentinel(buf, fmt, args, 0) catch "<overflow>";
         }
     }.f;
 
