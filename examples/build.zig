@@ -45,26 +45,31 @@ pub fn build(b: *std.Build) !void {
             });
 
             const install_dir: std.Build.InstallDir = .{ .custom = "web" };
-            const emcc_flags = emsdk.emccDefaultFlags(b.allocator, .{ .optimize = optimize });
+            var emcc_flags = emsdk.emccDefaultFlags(b.allocator, .{ .optimize = optimize });
+            try emcc_flags.put("--embed-file=resources@resources", {});
             const emcc_settings = emsdk.emccDefaultSettings(b.allocator, .{ .optimize = optimize });
 
-            const emcc_step = emsdk.emccStep(b, raylib_artifact, wasm, .{
+            const raylib_c_dep = raylib_dep.builder.dependency("raylib", .{
+                .target = target,
+                .optimize = optimize,
+            });
+
+            const html_filename = b.fmt("{s}.html", .{wasm.name});
+            const emcc_step = emsdk.emccStep(b, &.{}, &.{ raylib_artifact, wasm }, .{
                 .optimize = optimize,
                 .flags = emcc_flags,
                 .settings = emcc_settings,
-                .shell_file_path = emsdk.shell(raylib_dep),
+                .shell_file_path = raylib_c_dep.path("src/shell.html"),
                 .install_dir = install_dir,
-                .embed_paths = &.{.{ .src_path = "resources/" }},
+                .out_file_name = html_filename,
             });
             b.getInstallStep().dependOn(emcc_step);
 
-            // `b.getInstallPath` was removed in 0.17; install paths are now
-            // only known during the make phase, so refer to them lazily.
-            const html_path: std.Build.LazyPath = .{ .relative = .{
-                .base = .install_prefix,
-                .sub_path = b.fmt("{s}/{s}.html", .{ install_dir.custom, wasm.name }),
-            } };
-            const emrun_step = emsdk.emrunStep(b, html_path, &.{});
+            const emrun_step = emsdk.emrunStep(
+                b,
+                b.graph.path(.install_prefix, b.fmt("{s}/{s}", .{ install_dir.custom, html_filename })),
+                &.{},
+            );
 
             emrun_step.dependOn(emcc_step);
             example_run_step.dependOn(emrun_step);
