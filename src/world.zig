@@ -1,6 +1,8 @@
 const std = @import("std");
 
 const RigidBody = @import("rigid_body.zig");
+const resolver = @import("resolver.zig");
+const collider = @import("collider.zig");
 const Vec2 = @import("math/vec2.zig");
 
 const World = @This();
@@ -31,8 +33,41 @@ pub fn deinit(world: *World) void {
 }
 
 pub fn step(world: *World, dt: f32) !void {
-    _ = dt;
-    _ = world;
+    for (world.bodies.items) |*b| {
+        if (b.kind == .static) {
+            continue;
+        }
+
+        b.velocity.y += world.gravity * dt;
+        b.velocity = b.velocity.add(b.force.scale(b.inv_mass * dt));
+        b.position = b.position.add(b.velocity.scale(dt));
+        b.force = .zero;
+    }
+
+    var contacts: std.ArrayList(collider.Contact) = .empty;
+    defer contacts.deinit(world.allocator);
+
+    for (world.bodies.items, 0..) |*a, i| {
+        for (world.bodies.items[i + 1 ..]) |*b| {
+            if (a.inv_mass + b.inv_mass == 0) {
+                continue;
+            }
+
+            if (collider.collide(a.*, b.*)) |m| {
+                try contacts.append(world.allocator, .{ .a = a, .b = b, .m = m });
+            }
+        }
+    }
+
+    for (0..world.velocity_iterations) |_| {
+        for (contacts.items) |c| {
+            resolver.resolveVelocity(&c);
+        }
+    }
+
+    for (contacts.items) |c| {
+        resolver.correctPosition(&c);
+    }
 }
 
 pub fn createBody(world: *World, opts: RigidBody.InitOptions) !RigidBody.Id {
@@ -106,4 +141,23 @@ test "getBodyMut allows modifying a body in place" {
 
     try testing.expectEqual(@as(f32, 1), world.getBody(id).velocity.x);
     try testing.expectEqual(@as(f32, 2), world.getBody(id).velocity.y);
+}
+
+test "step integrates dynamic bodies and resolves contacts against static ones" {
+    var world = World.init(testing.allocator, .{ .gravity = -10 });
+    defer world.deinit();
+
+    const floor = try world.createBody(.{ .kind = .static, .shape = .{ .box = .{ .half_extents = .one } } });
+    _ = try world.createBody(.{ .kind = .static, .shape = .{ .box = .{ .half_extents = .one } } });
+    const ball = try world.createBody(.{ .shape = .{ .circle = .{ .radius = 1 } }, .position = .init(0, 1.9) });
+    world.getBodyMut(ball).applyForce(.init(1, 0));
+
+    try world.step(0.1);
+
+    const body = world.getBody(ball);
+    try testing.expectEqual(Vec2.zero, world.getBody(floor).position);
+    try testing.expectEqual(Vec2.zero, body.force);
+    try testing.expect(body.velocity.x > 0);
+    try testing.expectApproxEqAbs(@as(f32, 0.2), body.velocity.y, 1e-5);
+    try testing.expect(body.position.y > 1.8);
 }

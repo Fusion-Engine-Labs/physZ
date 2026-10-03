@@ -16,7 +16,6 @@ const bg_color: rl.Color = .{ .r = 253, .g = 248, .b = 240, .a = 255 };
 const grid_color: rl.Color = .{ .r = 238, .g = 230, .b = 220, .a = 255 };
 const axis_color: rl.Color = .{ .r = 214, .g = 202, .b = 190, .a = 255 };
 const ink_color: rl.Color = .{ .r = 84, .g = 74, .b = 102, .a = 255 };
-const velocity_color: rl.Color = .{ .r = 240, .g = 110, .b = 150, .a = 255 };
 const panel_color: rl.Color = .{ .r = 255, .g = 255, .b = 255, .a = 220 };
 const panel_border_color: rl.Color = .{ .r = 230, .g = 218, .b = 236, .a = 255 };
 const paused_color: rl.Color = .{ .r = 236, .g = 120, .b = 100, .a = 255 };
@@ -61,14 +60,7 @@ const Camera = struct {
     }
 };
 
-pub const Bounds = struct {
-    min: Vec2,
-    max: Vec2,
-};
-
 pub const Options = struct {
-    // Optional outlined rectangle (world space) drawn behind the bodies.
-    bounds: ?Bounds = null,
     title: [:0]const u8 = "physZ",
     width: i32 = 1280,
     height: i32 = 720,
@@ -145,13 +137,11 @@ pub fn run(world: *World, opts: Options) !void {
 
     var camera: Camera = .{};
     var show_help = true;
-    var show_velocity = true;
 
     while (!rl.windowShouldClose()) {
         if (rl.isKeyPressed(.space)) sim.paused = !sim.paused;
         if (rl.isKeyPressed(.r)) try sim.restart();
         if (rl.isKeyPressed(.f1) or rl.isKeyPressed(.h)) show_help = !show_help;
-        if (rl.isKeyPressed(.v)) show_velocity = !show_velocity;
         if (rl.isKeyPressed(.home) or rl.isKeyPressed(.c)) camera = .{};
         if (rl.isKeyPressed(.left_bracket)) sim.time_scale = @max(sim.time_scale / 2, 0.125);
         if (rl.isKeyPressed(.right_bracket)) sim.time_scale = @min(sim.time_scale * 2, 8);
@@ -175,8 +165,7 @@ pub fn run(world: *World, opts: Options) !void {
 
         rl.clearBackground(bg_color);
         drawGrid(camera);
-        if (opts.bounds) |b| drawBounds(b, camera);
-        drawBodies(sim.world, camera, show_velocity);
+        drawBodies(sim.world, camera);
         drawStats(&sim);
         if (show_help) drawHelp();
     }
@@ -204,18 +193,7 @@ fn drawGrid(cam: Camera) void {
     }
 }
 
-fn drawBounds(bounds: Bounds, cam: Camera) void {
-    const top_left = cam.toScreen(Vec2.init(bounds.min.x, bounds.max.y));
-    const rect: rl.Rectangle = .{
-        .x = top_left.x,
-        .y = top_left.y,
-        .width = (bounds.max.x - bounds.min.x) * cam.pixels_per_meter,
-        .height = (bounds.max.y - bounds.min.y) * cam.pixels_per_meter,
-    };
-    rl.drawRectangleLinesEx(rect, 3, ink_color);
-}
-
-fn drawBodies(world: *const World, cam: Camera, show_velocity: bool) void {
+fn drawBodies(world: *const World, cam: Camera) void {
     var dynamic_index: usize = 0;
     for (world.bodies.items) |body| {
         const color = switch (body.kind) {
@@ -245,11 +223,6 @@ fn drawBodies(world: *const World, cam: Camera, show_velocity: bool) void {
                 };
                 rl.drawRectangleRec(rect, color);
             },
-        }
-
-        if (show_velocity and body.kind == .dynamic and body.velocity.lengthSquared() > 0) {
-            const tip = cam.toScreen(body.position.add(body.velocity.scale(0.5)));
-            rl.drawLineEx(center, tip, 2, velocity_color);
         }
     }
 }
@@ -307,7 +280,6 @@ fn drawHelp() void {
         "N / Right  step (while paused)",
         "R          restart",
         "[ / ]      slower / faster",
-        "V          toggle velocity vectors",
         "RMB drag   pan",
         "Wheel      zoom",
         "C / Home   reset camera",
