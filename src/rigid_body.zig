@@ -71,7 +71,7 @@ pub fn applyForceAt(body: *RigidBody, force: Vec2, point: Vec2) void {
     const r = point.sub(body.position);
 
     body.force = body.force.add(force);
-    body.torque = r.cross(force);
+    body.torque += r.cross(force);
 }
 
 pub fn applyTorque(body: *RigidBody, torque: f32) void {
@@ -96,4 +96,5 @@ test "static body has zero inverse mass" {
     });
 
     try testing.expectEqual(@as(f32, 0), body.inv_mass);
+    try testing.expectEqual(@as(f32, 0), body.inv_inertia);
 }

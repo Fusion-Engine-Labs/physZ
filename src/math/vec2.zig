@@ -67,3 +67,8 @@ test "dot and length" {
     try testing.expectEqual(@as(f32, 5), v.length());
     try testing.expectEqual(@as(f32, 0), Vec2.init(1, 0).dot(Vec2.init(0, 1)));
 }
+
+test "cross" {
+    try testing.expectEqual(@as(f32, 1), Vec2.init(1, 0).cross(Vec2.init(0, 1)));
+    try testing.expectEqual(Vec2.init(-4, 2), crossSV(2, Vec2.init(1, 2)));
+}
