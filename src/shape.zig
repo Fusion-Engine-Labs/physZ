@@ -20,6 +20,13 @@ pub const Shape = union(enum) {
             .box => |b| 4 * b.half_extents.x * b.half_extents.y,
         };
     }
+
+    pub fn inertia(shape: Shape, mass: f32) f32 {
+        return switch (shape) {
+            .circle => |c| 0.5 * mass * c.radius * c.radius,
+            .box => |b| mass * (b.half_extents.x * b.half_extents.x + b.half_extents.y * b.half_extents.y) / 3,
+        };
+    }
 };
 
 const testing = std.testing;

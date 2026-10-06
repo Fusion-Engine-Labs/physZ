@@ -40,6 +40,14 @@ pub inline fn length(v: Vec2) f32 {
     return std.math.sqrt(v.lengthSquared());
 }
 
+pub inline fn cross(a: Vec2, b: Vec2) f32 {
+    return a.x * b.y - a.y * b.x;
+}
+
+pub inline fn crossSV(s: f32, v: Vec2) Vec2 {
+    return .{ .x = -s * v.y, .y = s * v.x };
+}
+
 const testing = std.testing;
 
 test "add, sub, scale, negate" {

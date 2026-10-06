@@ -38,10 +38,18 @@ pub fn step(world: *World, dt: f32) !void {
             continue;
         }
 
+        // linear
         b.velocity.y += world.gravity * dt;
         b.velocity = b.velocity.add(b.force.scale(b.inv_mass * dt));
         b.position = b.position.add(b.velocity.scale(dt));
+
+        // angular
+        b.angular_velocity += b.torque * b.inv_inertia * dt;
+        b.angle += b.angular_velocity * dt;
+
+        // resets
         b.force = .zero;
+        b.torque = 0;
     }
 
     var contacts: std.ArrayList(collider.Contact) = .empty;
