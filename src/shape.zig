@@ -31,10 +31,12 @@ pub const Shape = union(enum) {
 
 const testing = std.testing;
 
-test "area" {
+test "area and inertia" {
     const circle: Shape = .{ .circle = .{ .radius = 2 } };
     const box: Shape = .{ .box = .{ .half_extents = Vec2.init(1, 3) } };
 
     try testing.expectApproxEqAbs(@as(f32, 4 * std.math.pi), circle.area(), 1e-5);
     try testing.expectEqual(@as(f32, 12), box.area());
+    try testing.expectEqual(@as(f32, 6), circle.inertia(3));
+    try testing.expectEqual(@as(f32, 10), box.inertia(3));
 }

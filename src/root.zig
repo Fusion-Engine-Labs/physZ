@@ -12,6 +12,7 @@ test {
 
     _ = @import("rigid_body.zig");
     _ = @import("math/vec2.zig");
+    _ = @import("math/rot.zig");
     _ = @import("resolver.zig");
     _ = @import("collider.zig");
     _ = @import("world.zig");

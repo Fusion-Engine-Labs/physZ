@@ -175,12 +175,12 @@ test "step integrates torque into spin for boxes and circles" {
     defer world.deinit();
 
     // Unit box at density 1: I = 1/6. Unit circle: I = π/2.
-    const box = try world.createBody(.{ .shape = .{ .box = .{ .half_extents = .init(0.5, 0.5) } } });
+    const box = try world.createBody(.{ .shape = .{ .box = .{ .half_extents = .init(0.5, 0.5) } }, .position = .init(5, 3) });
     const ball = try world.createBody(.{ .shape = .{ .circle = .{ .radius = 1 } }, .position = .init(10, 0), .angular_velocity = 1 });
 
     const b = world.getBodyMut(box);
     b.applyTorque(1);
-    b.applyForceAt(.init(0, 1), .init(1, 0));
+    b.applyForceAt(.init(0, 1), .init(6, 3));
     world.getBodyMut(ball).applyTorque(std.math.pi);
 
     try world.step(0.5);
