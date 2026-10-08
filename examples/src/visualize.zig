@@ -12,12 +12,33 @@ const font_size = 20;
 const line_height = 24;
 const panel_padding = 10;
 
-const bg_color: rl.Color = .{ .r = 253, .g = 248, .b = 240, .a = 255 };
-const grid_color: rl.Color = .{ .r = 238, .g = 230, .b = 220, .a = 255 };
-const axis_color: rl.Color = .{ .r = 214, .g = 202, .b = 190, .a = 255 };
-const ink_color: rl.Color = .{ .r = 84, .g = 74, .b = 102, .a = 255 };
-const panel_color: rl.Color = .{ .r = 255, .g = 255, .b = 255, .a = 220 };
-const panel_border_color: rl.Color = .{ .r = 230, .g = 218, .b = 236, .a = 255 };
+const Palette = struct {
+    bg: rl.Color,
+    grid: rl.Color,
+    axis: rl.Color,
+    ink: rl.Color,
+    panel: rl.Color,
+    panel_border: rl.Color,
+};
+
+// Warm paper, and the same hues dropped to a soft charcoal.
+const light_palette: Palette = .{
+    .bg = .{ .r = 253, .g = 248, .b = 240, .a = 255 },
+    .grid = .{ .r = 238, .g = 230, .b = 220, .a = 255 },
+    .axis = .{ .r = 214, .g = 202, .b = 190, .a = 255 },
+    .ink = .{ .r = 84, .g = 74, .b = 102, .a = 255 },
+    .panel = .{ .r = 255, .g = 255, .b = 255, .a = 220 },
+    .panel_border = .{ .r = 230, .g = 218, .b = 236, .a = 255 },
+};
+const dark_palette: Palette = .{
+    .bg = .{ .r = 42, .g = 38, .b = 36, .a = 255 },
+    .grid = .{ .r = 62, .g = 56, .b = 52, .a = 255 },
+    .axis = .{ .r = 96, .g = 86, .b = 78, .a = 255 },
+    .ink = .{ .r = 232, .g = 226, .b = 236, .a = 255 },
+    .panel = .{ .r = 54, .g = 50, .b = 56, .a = 230 },
+    .panel_border = .{ .r = 96, .g = 86, .b = 108, .a = 255 },
+};
+
 const paused_color: rl.Color = .{ .r = 236, .g = 120, .b = 100, .a = 255 };
 const running_color: rl.Color = .{ .r = 70, .g = 170, .b = 120, .a = 255 };
 const orientation_color: rl.Color = .{ .r = 84, .g = 74, .b = 102, .a = 140 };
@@ -143,10 +164,12 @@ pub fn run(world: *World, opts: Options) !void {
 
     var camera: Camera = .{};
     var show_help = true;
+    var dark = false;
 
     while (!rl.windowShouldClose()) {
         if (rl.isKeyPressed(.space)) sim.paused = !sim.paused;
         if (rl.isKeyPressed(.r)) try sim.restart();
+        if (rl.isKeyPressed(.d)) dark = !dark;
         if (rl.isKeyPressed(.f1) or rl.isKeyPressed(.h)) show_help = !show_help;
         if (rl.isKeyPressed(.home) or rl.isKeyPressed(.c)) camera = .{};
         if (rl.isKeyPressed(.left_bracket)) sim.time_scale = @max(sim.time_scale / 2, 0.125);
@@ -169,15 +192,16 @@ pub fn run(world: *World, opts: Options) !void {
         rl.beginDrawing();
         defer rl.endDrawing();
 
-        rl.clearBackground(bg_color);
-        drawGrid(camera);
+        const palette = if (dark) dark_palette else light_palette;
+        rl.clearBackground(palette.bg);
+        drawGrid(camera, palette);
         drawBodies(sim.world, camera);
-        drawStats(&sim);
-        if (show_help) drawHelp();
+        drawStats(&sim, palette);
+        if (show_help) drawHelp(palette);
     }
 }
 
-fn drawGrid(cam: Camera) void {
+fn drawGrid(cam: Camera, palette: Palette) void {
     const top_left = cam.toWorld(.{ .x = 0, .y = 0 });
     const bottom_right = cam.toWorld(.{
         .x = @floatFromInt(rl.getScreenWidth()),
@@ -189,12 +213,12 @@ fn drawGrid(cam: Camera) void {
 
     var x = @floor(top_left.x / spacing) * spacing;
     while (x <= bottom_right.x) : (x += spacing) {
-        const color = if (x == 0) axis_color else grid_color;
+        const color = if (x == 0) palette.axis else palette.grid;
         rl.drawLineV(cam.toScreen(Vec2.init(x, top_left.y)), cam.toScreen(Vec2.init(x, bottom_right.y)), color);
     }
     var y = @floor(bottom_right.y / spacing) * spacing;
     while (y <= top_left.y) : (y += spacing) {
-        const color = if (y == 0) axis_color else grid_color;
+        const color = if (y == 0) palette.axis else palette.grid;
         rl.drawLineV(cam.toScreen(Vec2.init(top_left.x, y)), cam.toScreen(Vec2.init(bottom_right.x, y)), color);
     }
 }
@@ -233,7 +257,7 @@ fn drawBodies(world: *const World, cam: Camera) void {
     }
 }
 
-fn drawStats(sim: *const Sim) void {
+fn drawStats(sim: *const Sim, palette: Palette) void {
     var bufs: [9][64]u8 = undefined;
     var lines: [9][:0]const u8 = undefined;
     var n: usize = 0;
@@ -273,14 +297,14 @@ fn drawStats(sim: *const Sim) void {
     const panel_x = rl.getScreenWidth() - panel_w - panel_padding;
     const panel_y = panel_padding;
 
-    drawPanel(panel_x, panel_y, panel_w, panel_h);
+    drawPanel(panel_x, panel_y, panel_w, panel_h, palette);
     for (lines[0..n], 0..) |line, i| {
-        const color: rl.Color = if (i == 0) (if (sim.paused) paused_color else running_color) else ink_color;
+        const color: rl.Color = if (i == 0) (if (sim.paused) paused_color else running_color) else palette.ink;
         rl.drawText(line, panel_x + panel_padding, panel_y + panel_padding + @as(i32, @intCast(i)) * line_height, font_size, color);
     }
 }
 
-fn drawHelp() void {
+fn drawHelp(palette: Palette) void {
     const lines = [_][:0]const u8{
         "Space      play / pause",
         "N / Right  step (while paused)",
@@ -289,6 +313,7 @@ fn drawHelp() void {
         "RMB drag   pan",
         "Wheel      zoom",
         "C / Home   reset camera",
+        "D          dark mode",
         "H / F1     toggle this help",
     };
 
@@ -298,19 +323,19 @@ fn drawHelp() void {
 
     const panel_x = panel_padding;
     const panel_y = rl.getScreenHeight() - panel_h - panel_padding;
-    drawPanel(panel_x, panel_y, max_width + 2 * panel_padding, panel_h);
+    drawPanel(panel_x, panel_y, max_width + 2 * panel_padding, panel_h, palette);
     for (lines, 0..) |line, i| {
-        rl.drawText(line, panel_x + panel_padding, panel_y + panel_padding + @as(i32, @intCast(i)) * line_height, font_size, ink_color);
+        rl.drawText(line, panel_x + panel_padding, panel_y + panel_padding + @as(i32, @intCast(i)) * line_height, font_size, palette.ink);
     }
 }
 
-fn drawPanel(x: i32, y: i32, w: i32, h: i32) void {
+fn drawPanel(x: i32, y: i32, w: i32, h: i32, palette: Palette) void {
     const rect: rl.Rectangle = .{
         .x = @floatFromInt(x),
         .y = @floatFromInt(y),
         .width = @floatFromInt(w),
         .height = @floatFromInt(h),
     };
-    rl.drawRectangleRounded(rect, 0.15, 8, panel_color);
-    rl.drawRectangleRoundedLinesEx(rect, 0.15, 8, 2, panel_border_color);
+    rl.drawRectangleRounded(rect, 0.15, 8, palette.panel);
+    rl.drawRectangleRoundedLinesEx(rect, 0.15, 8, 2, palette.panel_border);
 }
