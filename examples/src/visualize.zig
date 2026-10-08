@@ -20,6 +20,7 @@ const panel_color: rl.Color = .{ .r = 255, .g = 255, .b = 255, .a = 220 };
 const panel_border_color: rl.Color = .{ .r = 230, .g = 218, .b = 236, .a = 255 };
 const paused_color: rl.Color = .{ .r = 236, .g = 120, .b = 100, .a = 255 };
 const running_color: rl.Color = .{ .r = 70, .g = 170, .b = 120, .a = 255 };
+const orientation_color: rl.Color = .{ .r = 84, .g = 74, .b = 102, .a = 140 };
 const static_color: rl.Color = .{ .r = 196, .g = 190, .b = 212, .a = 255 };
 const dynamic_colors = [_]rl.Color{
     .{ .r = 255, .g = 179, .b = 198, .a = 255 }, // pink
@@ -60,8 +61,11 @@ const Camera = struct {
     }
 };
 
+pub const StepHook = *const fn (world: *World, step: u64) void;
+
 pub const Options = struct {
     title: [:0]const u8 = "physZ",
+    on_step: ?StepHook = null,
     width: i32 = 1280,
     height: i32 = 720,
 };
@@ -70,6 +74,7 @@ const Sim = struct {
     world: *World,
     // Copy of the world as the scene built it, restored on restart.
     initial: World,
+    on_step: ?StepHook,
     paused: bool = true,
     time_scale: f32 = 1,
     accumulator: f32 = 0,
@@ -78,10 +83,10 @@ const Sim = struct {
     step_ms: f64 = 0,
     steps_last_frame: u32 = 0,
 
-    fn init(world: *World) !Sim {
+    fn init(world: *World, on_step: ?StepHook) !Sim {
         var initial = world.*;
         initial.bodies = try world.bodies.clone(world.allocator);
-        return .{ .world = world, .initial = initial };
+        return .{ .world = world, .initial = initial, .on_step = on_step };
     }
 
     fn deinit(sim: *Sim) void {
@@ -103,6 +108,7 @@ const Sim = struct {
 
     fn stepOnce(sim: *Sim) !void {
         const start = rl.getTime();
+        if (sim.on_step) |hook| hook(sim.world, sim.step_count);
         try sim.world.step(fixed_dt);
         sim.step_ms += (rl.getTime() - start) * 1000;
         sim.step_count += 1;
@@ -132,7 +138,7 @@ pub fn run(world: *World, opts: Options) !void {
 
     rl.setTargetFPS(60);
 
-    var sim = try Sim.init(world);
+    var sim = try Sim.init(world, opts.on_step);
     defer sim.deinit();
 
     var camera: Camera = .{};
@@ -204,24 +210,24 @@ fn drawBodies(world: *const World, cam: Camera) void {
             },
         };
         const center = cam.toScreen(body.position);
+        const angle = body.angle;
 
         switch (body.shape) {
             .circle => |c| {
                 const r = c.radius * cam.pixels_per_meter;
                 rl.drawCircleV(center, r, color);
+                // Radius line so spin is visible.
+                const rim = body.position.add(Vec2.init(@cos(angle), @sin(angle)).scale(c.radius));
+                rl.drawLineEx(center, cam.toScreen(rim), 2, orientation_color);
             },
             .box => |b| {
-                const top_left = cam.toScreen(Vec2.init(
-                    body.position.x - b.half_extents.x,
-                    body.position.y + b.half_extents.y,
-                ));
-                const rect: rl.Rectangle = .{
-                    .x = top_left.x,
-                    .y = top_left.y,
-                    .width = 2 * b.half_extents.x * cam.pixels_per_meter,
-                    .height = 2 * b.half_extents.y * cam.pixels_per_meter,
+                const size: rl.Vector2 = .{
+                    .x = 2 * b.half_extents.x * cam.pixels_per_meter,
+                    .y = 2 * b.half_extents.y * cam.pixels_per_meter,
                 };
-                rl.drawRectangleRec(rect, color);
+                const rect: rl.Rectangle = .{ .x = center.x, .y = center.y, .width = size.x, .height = size.y };
+                // World angles are counter-clockwise with y up; raylib rotates clockwise with y down.
+                rl.drawRectanglePro(rect, .{ .x = size.x / 2, .y = size.y / 2 }, -std.math.radiansToDegrees(angle), color);
             },
         }
     }

@@ -40,6 +40,18 @@ pub inline fn length(v: Vec2) f32 {
     return std.math.sqrt(v.lengthSquared());
 }
 
+pub inline fn cross(a: Vec2, b: Vec2) f32 {
+    return a.x * b.y - a.y * b.x;
+}
+
+pub inline fn crossSV(s: f32, v: Vec2) Vec2 {
+    return .{ .x = -s * v.y, .y = s * v.x };
+}
+
+pub inline fn perp(v: Vec2) Vec2 {
+    return .{ .x = -v.y, .y = v.x };
+}
+
 const testing = std.testing;
 
 test "add, sub, scale, negate" {
@@ -58,4 +70,10 @@ test "dot and length" {
     try testing.expectEqual(@as(f32, 25), v.lengthSquared());
     try testing.expectEqual(@as(f32, 5), v.length());
     try testing.expectEqual(@as(f32, 0), Vec2.init(1, 0).dot(Vec2.init(0, 1)));
+}
+
+test "cross" {
+    try testing.expectEqual(@as(f32, 1), Vec2.init(1, 0).cross(Vec2.init(0, 1)));
+    try testing.expectEqual(Vec2.init(-4, 2), crossSV(2, Vec2.init(1, 2)));
+    try testing.expectEqual(Vec2.init(-2, 1), Vec2.init(1, 2).perp());
 }

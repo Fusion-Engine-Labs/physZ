@@ -38,10 +38,18 @@ pub fn step(world: *World, dt: f32) !void {
             continue;
         }
 
+        // linear
         b.velocity.y += world.gravity * dt;
         b.velocity = b.velocity.add(b.force.scale(b.inv_mass * dt));
         b.position = b.position.add(b.velocity.scale(dt));
+
+        // angular
+        b.angular_velocity += b.torque * b.inv_inertia * dt;
+        b.angle += b.angular_velocity * dt;
+
+        // resets
         b.force = .zero;
+        b.torque = 0;
     }
 
     var contacts: std.ArrayList(collider.Contact) = .empty;
@@ -160,4 +168,26 @@ test "step integrates dynamic bodies and resolves contacts against static ones" 
     try testing.expect(body.velocity.x > 0);
     try testing.expectApproxEqAbs(@as(f32, 0.2), body.velocity.y, 1e-5);
     try testing.expect(body.position.y > 1.8);
+}
+
+test "step integrates torque into spin for boxes and circles" {
+    var world = World.init(testing.allocator, .{ .gravity = 0 });
+    defer world.deinit();
+
+    // Unit box at density 1: I = 1/6. Unit circle: I = π/2.
+    const box = try world.createBody(.{ .shape = .{ .box = .{ .half_extents = .init(0.5, 0.5) } }, .position = .init(5, 3) });
+    const ball = try world.createBody(.{ .shape = .{ .circle = .{ .radius = 1 } }, .position = .init(10, 0), .angular_velocity = 1 });
+
+    const b = world.getBodyMut(box);
+    b.applyTorque(1);
+    b.applyForceAt(.init(0, 1), .init(6, 3));
+    world.getBodyMut(ball).applyTorque(std.math.pi);
+
+    try world.step(0.5);
+
+    try testing.expectApproxEqAbs(@as(f32, 6), world.getBody(box).angular_velocity, 1e-5);
+    try testing.expectApproxEqAbs(@as(f32, 3), world.getBody(box).angle, 1e-5);
+    try testing.expectEqual(@as(f32, 0.5), world.getBody(box).velocity.y);
+    try testing.expectEqual(@as(f32, 0), world.getBody(box).torque);
+    try testing.expectApproxEqAbs(@as(f32, 2), world.getBody(ball).angular_velocity, 1e-5);
 }
